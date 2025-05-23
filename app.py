@@ -39,7 +39,7 @@ if uploaded_file is not None:
     forecast = model.predict(future)
 
     # 예측 결과 시각화 (최근 30일만 필터링)
-    forecast_recent = forecast[forecast["ds"] > df["ds"].max()]
+    forecast_recent = forecast[forecast["ds"] > df["date"].max()]
 
     st.subheader("🔮 향후 30일 예측 매출")
     st.line_chart(forecast_recent.set_index("ds")["yhat"])
