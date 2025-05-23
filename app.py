@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from prophet import Prophet
 
-st.title("📈 추세")
+st.title("📈 할인 이벤트 기반 매출 예측 앱")
 
 # ▶ 파일 업로드
 uploaded_file = st.file_uploader("엑셀 파일을 업로드하세요 (2행 이후부터 유효 데이터)", type=["xlsx"])
@@ -48,5 +48,10 @@ if uploaded_file is not None:
 
     st.subheader("📅 이벤트 감지 일자")
     st.dataframe(df[df["is_event"] == 1][["date", "charged_amount"]].reset_index(drop=True))
+
+    # 예측 요소 분해 시각화 추가
+    st.subheader("📉 예측 요소 분해 보기")
+    fig = model.plot_components(forecast)
+    st.pyplot(fig)
 else:
     st.info("파일을 업로드하면 분석이 시작됩니다.")
