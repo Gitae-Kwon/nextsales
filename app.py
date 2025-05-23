@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from prophet import Prophet
 
-st.title("📈 추세예상")
+st.title("📈 추세")
 
 # ▶ 파일 업로드
 uploaded_file = st.file_uploader("엑셀 파일을 업로드하세요 (2행 이후부터 유효 데이터)", type=["xlsx"])
@@ -37,11 +37,11 @@ if uploaded_file is not None:
     future = future.merge(df_prophet[["ds", "is_event"]], on="ds", how="left").fillna(0)
     forecast = model.predict(future)
 
-    # 예측 결과 시각화
-    forecast_recent = forecast.tail(30)
-    
+    # 예측 결과 시각화 (최근 30일만 필터링)
+    forecast_recent = forecast[forecast["ds"] > df["date"].max()]
+
     st.subheader("🔮 향후 30일 예측 매출")
-    st.line_chart(forecast.set_index("ds")["yhat"])
+    st.line_chart(forecast_recent.set_index("ds")["yhat"])
 
     st.subheader("📊 과거 매출 추이")
     st.line_chart(df.set_index("date")["charged_amount"])
