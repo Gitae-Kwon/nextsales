@@ -3,40 +3,48 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from prophet import Prophet
 
-# ▶ Data Load (from CSV or internal placeholder)
-df = pd.read_excel("dede.xlsx", skiprows=2)
-df = df[["Unnamed: 1", "금액"]].copy()
-df.columns = ["date", "charged_amount"]
-df.dropna(inplace=True)
-df["date"] = pd.to_datetime(df["date"])
-df = df.sort_values("date")
+st.title("📈 할인 이벤트 기반 매출 예측 앱")
 
-# ▶ 파생 변수 생성 (이벤트 여부 판단)
-df["prev"] = df["charged_amount"].shift(1)
-df["avg7"] = df["charged_amount"].rolling(7, center=True, min_periods=1).mean()
-df["is_event"] = ((df["charged_amount"] >= df["prev"] * 2) |
-                  (df["charged_amount"] >= df["avg7"] * 2)).astype(int)
+# ▶ 파일 업로드
+uploaded_file = st.file_uploader("엑셀 파일을 업로드하세요 (2행 이후부터 유효 데이터)", type=["xlsx"])
 
-# ▶ Prophet 준비
-df_prophet = df[["date", "charged_amount", "is_event"]].rename(columns={
-    "date": "ds",
-    "charged_amount": "y"
-})
-model = Prophet()
-model.add_regressor("is_event")
-model.fit(df_prophet)
+if uploaded_file is not None:
+    # 데이터 로드
+    df = pd.read_excel(uploaded_file, skiprows=2)
+    df = df[["Unnamed: 1", "금액"]].copy()
+    df.columns = ["date", "charged_amount"]
+    df.dropna(inplace=True)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
 
-# ▶ 예측 생성
-future = model.make_future_dataframe(periods=30)
-future = future.merge(df_prophet[["ds", "is_event"]], on="ds", how="left").fillna(0)
-forecast = model.predict(future)
+    # 파생 변수 생성 (이벤트 감지)
+    df["prev"] = df["charged_amount"].shift(1)
+    df["avg7"] = df["charged_amount"].rolling(7, center=True, min_periods=1).mean()
+    df["is_event"] = ((df["charged_amount"] >= df["prev"] * 2) |
+                      (df["charged_amount"] >= df["avg7"] * 2)).astype(int)
 
-# ▶ Streamlit UI
-st.title("할인 이벤트 및 일자별 매주 예측")
-st.line_chart(forecast.set_index("ds")["yhat"])
+    # Prophet 준비
+    df_prophet = df[["date", "charged_amount", "is_event"]].rename(columns={
+        "date": "ds",
+        "charged_amount": "y"
+    })
+    model = Prophet()
+    model.add_regressor("is_event")
+    model.fit(df_prophet)
 
-st.subheader("현재 데이터 그리기")
-st.line_chart(df.set_index("date")["charged_amount"])
+    # 예측 생성
+    future = model.make_future_dataframe(periods=30)
+    future = future.merge(df_prophet[["ds", "is_event"]], on="ds", how="left").fillna(0)
+    forecast = model.predict(future)
 
-st.write("▶ 이벤트 일자")
-st.dataframe(df[df["is_event"] == 1][["date", "charged_amount"]].reset_index(drop=True))
+    # 예측 결과 시각화
+    st.subheader("🔮 향후 30일 예측 매출")
+    st.line_chart(forecast.set_index("ds")["yhat"])
+
+    st.subheader("📊 과거 매출 추이")
+    st.line_chart(df.set_index("date")["charged_amount"])
+
+    st.subheader("📅 이벤트 감지 일자")
+    st.dataframe(df[df["is_event"] == 1][["date", "charged_amount"]].reset_index(drop=True))
+else:
+    st.info("파일을 업로드하면 분석이 시작됩니다.")
