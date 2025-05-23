@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from prophet import Prophet
 
-st.title("📈 할인 이벤트 기반 매출 예측 앱")
+st.title("📈 추세예상")
 
 # ▶ 파일 업로드
 uploaded_file = st.file_uploader("엑셀 파일을 업로드하세요 (2행 이후부터 유효 데이터)", type=["xlsx"])
@@ -38,6 +38,8 @@ if uploaded_file is not None:
     forecast = model.predict(future)
 
     # 예측 결과 시각화
+    forecast_recent = forecast.tail(30)
+    
     st.subheader("🔮 향후 30일 예측 매출")
     st.line_chart(forecast.set_index("ds")["yhat"])
 
