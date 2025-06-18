@@ -1,5 +1,6 @@
-prophet
-pandas
-openpyxl
 streamlit
-matplotlib
+pandas
+altair
+prophet
+sqlalchemy
+psycopg2-binary
