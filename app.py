@@ -37,7 +37,13 @@ weekdays = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturda
 # ── 3) 데이터 로드 함수 정의 ─────────────────────────────────────────
 @st.cache_data
 def load_coin_data():
-    df = pd.read_sql("SELECT date, Title, Total_coins FROM purchase_bomkr", con=engine)
+    df = pd.read_sql(
+        "SELECT date, Title, Total_coins FROM purchase_bomkr",
+        con=engine
+    )
+    # 1) 문자열→숫자
+    df["Total_coins"] = pd.to_numeric(df["Total_coins"], errors="coerce").fillna(0).astype(int)
+    # 2) date 컬럼도 안전하게 파싱
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     return df
 
@@ -161,7 +167,7 @@ if len(coin_date_range) == 2:
     if "coin_top_n" not in st.session_state:
         st.session_state.coin_top_n = 10
     top_n       = st.session_state.coin_top_n
-    total_coins = int(coin_sum.sum())
+    total_coins = coin_sum.sum()
 
     df_top = coin_sum.head(top_n).reset_index(name="Total_coins")
     df_top.insert(0, "Rank", range(1, len(df_top)+1))
