@@ -48,23 +48,36 @@ def load_coin_data():
 
 @st.cache_data
 def load_payment_data():
-    query = """
+    query = '''
       SELECT
-        date,
+        `date`,
         SUM(amount)                              AS amount,
         SUM(CASE WHEN payment_count = 1 THEN 1 ELSE 0 END) AS first_count
       FROM payment_bomkr
-      GROUP BY date
-    """
+      GROUP BY `date`
+    '''
     df = pd.read_sql(query, con=engine)
 
-    # 날짜 파싱 강화
-    df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
-    bad = df["date"].isna().sum()
-    if bad:
-        st.warning(f"⚠️ 날짜 파싱 실패 {bad:,}건 → 해당 행들은 제거됩니다")
-        df = df.dropna(subset=["date"])
-    return df
+    # —————————— 날짜 파싱 보강 ——————————
+    df["date"] = pd.to_datetime(
+        df["date"],
+        format="%Y-%m-%d",   # MySQL DATE 기본 포맷
+        errors="coerce"      # 파싱 실패 시 NaT 처리
+    )
+    bad_idx  = df["date"].isna()
+    bad_rows = df.loc[bad_idx, :].copy()
+    df        = df.loc[~bad_idx, :].reset_index(drop=True)
+    # ————————————————————————————————
+
+    return df, bad_rows
+
+
+# 메인에서:
+pay_df, bad_rows = load_payment_data()
+
+if not bad_rows.empty:
+    st.warning(f"⚠️ 날짜 파싱 실패 {len(bad_rows):,}건 → 해당 행들은 제거됩니다")
+    st.write("❗ 파싱 실패 원본 행들(예시):", bad_rows.head())
 
 coin_df = load_coin_data()
 pay_df  = load_payment_data()
