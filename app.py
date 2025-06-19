@@ -175,10 +175,11 @@ if len(coin_date_range) == 2:
     df_top["is_new"]      = pd.to_datetime(df_top["Launch Date"]) >= s
 
     def hl(row):
-        return [
-            "color: yellow" if (col=="Title" and row.is_new) else ""
-            for col in df_top.columns
-        ]
+        is_new = df_top.loc[row.name, "is_new"]
+    return [
+        "color: yellow" if (col == "Title" and is_new) else ""
+        for col in row.index
+    ]
 
     disp = df_top[["Rank","Title","Total_coins","Launch Date"]].copy()
     styled = (
