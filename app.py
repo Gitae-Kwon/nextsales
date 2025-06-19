@@ -35,6 +35,12 @@ st.title("📊 웹툰 매출 & 결제 분석 대시보드 + 이벤트 인사이�
 
 weekdays = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
 
+pay_df_raw = load_payment_data()
+st.write("▶ pay_df 타입:", type(pay_df_raw))
+st.write("▶ pay_df 샘플:", pay_df_raw.head())
+pay_df = pay_df_raw.sort_values("date").reset_index(drop=True)
+
+
 # ── 데이터 로드 ───────────────────────────────────────────────────
 @st.cache_data
 def load_coin_data():
