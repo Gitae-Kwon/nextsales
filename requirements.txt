@@ -3,8 +3,6 @@ pandas
 altair
 prophet
 sqlalchemy
-psycopg2-binary
-psycopg2-binary>=2.9
-SQLAlchemy
 PyMySQL
+psycopg2-binary
 cryptography
