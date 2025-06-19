@@ -159,7 +159,12 @@ coin_date_range = st.date_input("코인 분석 기간 설정", [], key="coin_dat
 if len(coin_date_range)==2:
     s, e = pd.to_datetime(coin_date_range[0]), pd.to_datetime(coin_date_range[1])
     df_p = coin_df[(coin_df["date"]>=s)&(coin_df["date"]<=e)]
-    coin_sum = df_p.groupby("Title")["Total_coins"].sum().sort_values(False)
+    coin_sum = (
+        df_p
+        .groupby("Title")["Total_coins"]
+        .sum()
+        .sort_values(ascending=False)
+    )        
     first_launch = coin_df.groupby("Title")["date"].min()
 
     if "coin_top_n" not in st.session_state:
