@@ -170,7 +170,7 @@ if len(coin_date_range)==2:
     if "coin_top_n" not in st.session_state:
         st.session_state.coin_top_n = 10
     top_n = st.session_state.coin_top_n
-    total_coins = coin_sum.sum()
+    total_coins = int(coin_sum.sum())
 
     df_top = coin_sum.head(top_n).reset_index(name="Total_coins")
     df_top.insert(0,"Rank", range(1,len(df_top)+1))
