@@ -7,9 +7,6 @@ from datetime import timedelta
 import altair as alt
 
 
-st.write("🔒 st.secrets:", st.secrets)
-# 또는
-st.sidebar.json(st.secrets)
 
 # ── 한국 공휴일 (앞으로 예측에 사용) ──────────────────────────────
 holidays_kr = make_holidays_df(year_list=[2024, 2025], country="KR")
@@ -25,6 +22,15 @@ engine = create_engine(
     f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
     "?sslmode=require"
 )
+
+# ── 연결 테스트 코드 ─────────────────────────────────────────────────
+try:
+    conn = engine.connect()
+    st.success("✅ DB 연결 성공!")
+    conn.close()
+except Exception as e:
+    st.error(f"❌ DB 연결 실패: {e}")
+    st.stop()
 
 st.title("📊 웹툰 매출 & 결제 분석 대시보드 + 이벤트 인사이트")
 
