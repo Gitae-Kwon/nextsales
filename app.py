@@ -51,14 +51,28 @@ def load_coin_data():
 def load_payment_data():
     query = '''
       SELECT
-        date,
-        SUM(amount) AS amount,
+        `date`,
+        SUM(amount)           AS amount,
         SUM(CASE WHEN payment_count = 1 THEN 1 ELSE 0 END) AS first_count
       FROM payment_bomkr
-      GROUP BY date
+      GROUP BY `date`
     '''
     df = pd.read_sql(query, con=engine)
-    df["date"] = pd.to_datetime(df["date"])
+
+    # —————————— 날짜 파싱 보강 ——————————
+    # 1) 문자열→datetime 변환시 에러는 NaT 로 두고
+    df["date"] = pd.to_datetime(
+        df["date"],
+        format="%Y-%m-%d",   # MySQL DATE 기본 포맷
+        errors="coerce"       # 파싱 실패는 NaT 처리
+    )
+    # 2) NaT(파싱 실패) 행은 제거
+    bad = df["date"].isna().sum()
+    if bad:
+        st.warning(f"⚠️ 날짜 컬럼 파싱 실패 {bad:,}건, 해당 행들은 제거됩니다")
+        df = df.dropna(subset=["date"])
+    # ————————————————————————————————
+
     return df
 
 coin_df = load_coin_data()
