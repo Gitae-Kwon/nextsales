@@ -193,6 +193,48 @@ if len(coin_date_range) == 2:
     if len(coin_sum) > top_n and st.button("더보기"):
         st.session_state.coin_top_n += 10
 
-# 2-1) 콘텐츠별 이벤트 분석 (생략)
+# 2-1) 콘텐츠별 이벤트 분석
+options = ["전체 콘텐츠"] + sorted(coin_df["Title"].unique())
+sel     = st.selectbox("🔍 콘텐츠 선택", options)
+
+# 이하 2-2 ~ 2-7 번은 기존과 동일하게, 
+# selectbox 로 필터링한 df_coin 의 rolling_avg, event_flag, 예측 그래프 등을 그려 주시면 됩니다.
+# (생략)
+
 # ── 3) 결제 주기 분석 ─────────────────────────────────────────────
-# 이하 기존과 동일...
+st.header("⏱ 결제 주기 & 평균 결제금액 분석")
+c1, c2, c3 = st.columns(3)
+with c1:
+    dr = st.date_input("기간 설정", [], key="cycle_dr")
+with c2:
+    k = st.number_input("첫 번째 결제 건수",1,10,2,key="cnt_k")
+with c3:
+    m = st.number_input("두 번째 결제 건수",1,10,3,key="cnt_m")
+
+if st.button("결제 주기 계산"):
+    if len(dr)==2:
+        st_dt, en_dt = pd.to_datetime(dr[0]), pd.to_datetime(dr[1])
+        df_raw = pd.read_sql('SELECT user_id, platform, payment_count, amount, date FROM payment_bomkr', con=engine)
+        df_raw["date"] = pd.to_datetime(df_raw["date"])
+        df_filt = df_raw[(df_raw["date"]>=st_dt)&(df_raw["date"]<=en_dt)&(df_raw["payment_count"].isin([k,m]))]
+
+        df_k = df_filt[df_filt["payment_count"]==k] \
+                 .set_index("user_id")[["date","amount","platform"]] \
+                 .rename(columns={"date":"d_k","amount":"a_k"})
+        df_m = df_filt[df_filt["payment_count"]==m] \
+                 .set_index("user_id")[["date","amount"]]
+        df_m.columns = ["d_m","a_m"]
+        joined = df_k.join(df_m, how="inner")
+        joined["cycle"] = (joined["d_m"]-joined["d_k"]).dt.days
+
+        cycles = joined["cycle"]
+        amt_ser = joined[["a_k","a_m"]].stack()
+        pc = joined["platform"].value_counts(normalize=False)
+        mapping = {"M":"Mobile Web","W":"PC Web","P":"Android","A":"Apple"}
+
+        st.success(f"주기→ 평균:{cycles.mean():.1f}일  중앙값:{cycles.median():.1f}일  최빈값:{cycles.mode().iat[0]:.1f}일")
+        st.success(f"금액→ 평균:{amt_ser.mean():.2f}  중앙값:{amt_ser.median():.2f}  최빈값:{amt_ser.mode().iat[0]:.2f}")
+        st.success("플랫폼→ " + ", ".join(f"{mapping.get(p,p)}:{cnt}건({cnt/len(joined):.1%})" for p,cnt in pc.items()))
+
+    else:
+        st.error("시작일 · 종료일을 모두 선택해주세요.")
