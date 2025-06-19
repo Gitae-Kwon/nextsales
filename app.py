@@ -19,7 +19,9 @@ port     = st.secrets["DB"]["DB_PORT"]
 db       = st.secrets["DB"]["DB_NAME"]
 
 engine = create_engine(
-    f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}?sslmode=require"
+    f"mysql+pymysql://{user}:{password}@{host}:{port}/{db}?charset=utf8mb4",
+    pool_recycle=3600,        # 장시간 idle connection 방지를 위해
+    connect_args={"connect_timeout": 10}  # 타임아웃을 짧게 잡아 빠르게 실패하도록
 )
 
 # ── 연결 테스트 코드 ─────────────────────────────────────────────────
