@@ -19,8 +19,7 @@ port     = st.secrets["DB"]["DB_PORT"]
 db       = st.secrets["DB"]["DB_NAME"]
 
 engine = create_engine(
-    f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
-    "?sslmode=require"
+    f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}?sslmode=require"
 )
 
 # ── 연결 테스트 코드 ─────────────────────────────────────────────────
