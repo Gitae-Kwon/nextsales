@@ -6,6 +6,11 @@ from prophet.make_holidays import make_holidays_df
 from datetime import timedelta
 import altair as alt
 
+
+st.write("🔒 st.secrets:", st.secrets)
+# 또는
+st.sidebar.json(st.secrets)
+
 # ── 한국 공휴일 (앞으로 예측에 사용) ──────────────────────────────
 holidays_kr = make_holidays_df(year_list=[2024, 2025], country="KR")
 
