@@ -6,6 +6,11 @@ from prophet.make_holidays import make_holidays_df
 from datetime import timedelta
 import altair as alt
 
+# ── coin_top_n state 초기화 ──────────────────────────────────────
+# 앱이 시작될 때 한 번만 10으로 설정됩니다.
+if "coin_top_n" not in st.session_state:
+    st.session_state.coin_top_n = 10
+    
 # ── 0) 한국 공휴일 (Prophet 예측에 사용) ──────────────────────────────
 holidays_kr = make_holidays_df(year_list=[2024, 2025], country="KR")
 
