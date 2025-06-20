@@ -216,55 +216,70 @@ if len(coin_date_range) == 2:
 
 # ── 7) 3) 결제 주기 분석 ─────────────────────────────────────────────
 st.header("⏱ 결제 주기 & 평균 결제금액 분석")
-c1, c2, c3 = st.columns(3)
-with c1:
-    dr = st.date_input("기간 설정", [], key="cycle_dr")
-with c2:
-    k  = st.number_input("첫 번째 결제 건수", 1, 10, 2, key="cnt_k")
-with c3:
-    m  = st.number_input("두 번째 결제 건수", 1, 10, 3, key="cnt_m")
+# 1) 폼 정의
+with st.form("cycle_form"):
+    dr = st.date_input(
+        "기간 설정",
+        value=[],
+        key="cycle_dr"
+    )
+    k = st.number_input("첫 번째 결제 건수", 1, 10, 2, key="cnt_k")
+    m = st.number_input("두 번째 결제 건수", 1, 10, 3, key="cnt_m")
+    submit = st.form_submit_button("결제 주기 계산")
 
-if st.button("결제 주기 계산"):
+# 2) 폼이 제출됐을 때만 처리
+if submit:
     if len(dr) == 2:
         st_dt, en_dt = pd.to_datetime(dr[0]), pd.to_datetime(dr[1])
         df_raw = pd.read_sql(
-            "SELECT user_id, platform, payment_count, amount, date FROM payment_bomkr",
+            'SELECT user_id, platform, payment_count, amount, date '
+            'FROM payment_bomkr',
             con=engine
         )
-        df_raw["date"] = pd.to_datetime(df_raw["date"], errors="coerce")
+        df_raw["date"] = pd.to_datetime(df_raw["date"])
         df_filt = df_raw[
-            (df_raw["date"]>=st_dt) &
-            (df_raw["date"]<=en_dt) &
-            (df_raw["payment_count"].isin([k,m]))
+            (df_raw["date"] >= st_dt) &
+            (df_raw["date"] <= en_dt) &
+            (df_raw["payment_count"].isin([k, m]))
         ]
 
+        # 첫/두번째 결제 분리 및 주기 계산
         df_k = (
-            df_filt[df_filt["payment_count"]==k]
+            df_filt[df_filt["payment_count"] == k]
             .set_index("user_id")[["date","amount","platform"]]
             .rename(columns={"date":"d_k","amount":"a_k"})
         )
         df_m = (
-            df_filt[df_filt["payment_count"]==m]
+            df_filt[df_filt["payment_count"] == m]
             .set_index("user_id")[["date","amount"]]
         )
         df_m.columns = ["d_m","a_m"]
         joined = df_k.join(df_m, how="inner")
         joined["cycle"] = (joined["d_m"] - joined["d_k"]).dt.days
 
-        cycles   = joined["cycle"]
-        amt_ser  = joined[["a_k","a_m"]].stack()
-        pc       = joined["platform"].value_counts()
-        mapping  = {"M":"Mobile Web","W":"PC Web","P":"Android","A":"Apple"}
+        # 통계 계산
+        cycles      = joined["cycle"]
+        amt_ser     = joined[["a_k","a_m"]].stack()
+        plat_counts = joined["platform"].value_counts()
+        mapping     = {"M":"Mobile Web","W":"PC Web","P":"Android","A":"Apple"}
 
+        # 결과 출력
         st.success(
-            f"주기 → 평균: {cycles.mean():.1f}일 | 중앙값: {cycles.median():.1f}일 | 최빈값: {cycles.mode().iat[0]:.1f}일"
+            f"주기 → 평균: {cycles.mean():.1f}일 | "
+            f"중앙값: {cycles.median():.1f}일 | "
+            f"최빈값: {cycles.mode().iat[0]:.1f}일"
         )
         st.success(
-            f"금액 → 평균: {amt_ser.mean():.2f} | 중앙값: {amt_ser.median():.2f} | 최빈값: {amt_ser.mode().iat[0]:.2f}"
+            f"금액 → 평균: {amt_ser.mean():.2f} | "
+            f"중앙값: {amt_ser.median():.2f} | "
+            f"최빈값: {amt_ser.mode().iat[0]:.2f}"
         )
         st.success(
-            "플랫폼 → " +
-            ", ".join(f"{mapping.get(p,p)}: {cnt}건 ({cnt/len(joined):.1%})" for p,cnt in pc.items())
+            "플랫폼 분포 → " + 
+            ", ".join(
+                f"{mapping.get(p,p)}: {cnt}건 ({cnt/len(joined):.1%})"
+                for p,cnt in plat_counts.items()
+            )
         )
     else:
-        st.error("❗️ 시작일 · 종료일을 모두 선택해주세요.")
+        st.error("❗️ 시작일과 종료일을 모두 선택해주세요.")
