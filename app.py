@@ -210,8 +210,9 @@ if len(coin_date_range) == 2:
     )
     st.markdown(styled.to_html(index=False, escape=False), unsafe_allow_html=True)
 
-    if len(coin_sum) > top_n and st.button("더보기"):
-        st.session_state.coin_top_n += 10
+    if len(coin_sum) > st.session_state.coin_top_n:
+        if st.button("더보기", key="btn_coin_more"):
+            st.session_state.coin_top_n += 10
 
 # ── 7) 3) 결제 주기 분석 ─────────────────────────────────────────────
 st.header("⏱ 결제 주기 & 평균 결제금액 분석")
