@@ -157,29 +157,40 @@ st.line_chart(recent_fc.set_index("date")["first_count"])
 # ── 6) 2) 코인 매출 분석 ─────────────────────────────────────────────
 st.header("🪙 코인 매출 분석")
 
+# ── 2-0) 기간 설정 & Top N ─────────────────────────────────────────
 coin_date_range = st.date_input("코인 분석 기간 설정", [], key="coin_date")
 if len(coin_date_range) == 2:
     s, e = pd.to_datetime(coin_date_range[0]), pd.to_datetime(coin_date_range[1])
-    df_p = coin_df[(coin_df["date"]>=s) & (coin_df["date"]<=e)]
-    coin_sum = df_p.groupby("Title")["Total_coins"].sum().sort_values(ascending=False)
+    df_p = coin_df[(coin_df.date >= s) & (coin_df.date <= e)]
+    
+    # 그룹별 합계 & 전체 사용량
+    coin_sum     = df_p.groupby("Title")["Total_coins"].sum().sort_values(ascending=False)
+    total_coins  = int(coin_sum.sum())             # 전체 사용량
     first_launch = coin_df.groupby("Title")["date"].min()
 
     if "coin_top_n" not in st.session_state:
         st.session_state.coin_top_n = 10
-    top_n       = st.session_state.coin_top_n
-    total_coins = coin_sum.sum()
+    top_n   = st.session_state.coin_top_n
 
+    # Top N DataFrame
     df_top = coin_sum.head(top_n).reset_index(name="Total_coins")
-    df_top.insert(0, "Rank", range(1, len(df_top)+1))
+    top_n_sum = int(df_top["Total_coins"].sum())   # Top N 합계
+    ratio     = top_n_sum / total_coins            # 비율
+
+    # 헤더에 전체/TopN 합계 & 비율 표시
+    st.subheader(
+        f"📋 Top {top_n} 작품 (코인 사용량) "
+        f"{top_n_sum:,} / {total_coins:,} ({ratio:.1%})"
+    )
+
+    # 이후 기존처럼 테이블 렌더링
+    df_top.insert(0, "Rank", range(1, len(df_top) + 1))
     df_top["Launch Date"] = df_top["Title"].map(first_launch).dt.strftime("%Y-%m-%d")
     df_top["is_new"]      = pd.to_datetime(df_top["Launch Date"]) >= s
 
     def hl(row):
         is_new = df_top.loc[row.name, "is_new"]
-        return [
-            "color: yellow" if (col == "Title" and is_new) else ""
-            for col in row.index
-        ]
+        return ["color: yellow" if (col == "Title" and is_new) else "" for col in row.index]
 
     disp = df_top[["Rank","Title","Total_coins","Launch Date"]].copy()
     styled = (
@@ -192,8 +203,6 @@ if len(coin_date_range) == 2:
                 {"selector":"th.row_heading, th.blank","props":[("display","none")]}
             ])
     )
-
-    st.subheader(f"📋 Top {top_n} 작품 (코인 사용량) {total_coins:,}")
     st.markdown(styled.to_html(index=False, escape=False), unsafe_allow_html=True)
 
     if len(coin_sum) > top_n and st.button("더보기"):
