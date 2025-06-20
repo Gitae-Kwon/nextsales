@@ -53,26 +53,19 @@ def load_coin_data():
     return df
 
 @st.cache_data
-def load_payment_data():
-    sql = """
+def load_payment_data(start_date, end_date):
+    query = f"""
       SELECT
         `date`,
-        SUM(amount)                              AS amount,
+        SUM(amount) AS amount,
         SUM(CASE WHEN payment_count = 1 THEN 1 ELSE 0 END) AS first_count
       FROM payment_bomkr
+      WHERE date BETWEEN '{start_date}' AND '{end_date}'
       GROUP BY `date`
     """
-    df = pd.read_sql(sql, con=engine)
-
-    # 1) 날짜 문자열 → datetime (실패는 NaT)
+    df = pd.read_sql(query, con=engine)
     df["date"] = pd.to_datetime(df["date"], format="%Y-%m-%d", errors="coerce")
-    # 2) 파싱 실패 원본 행 따로 보관
-    bad_idx  = df["date"].isna()
-    bad_rows = df.loc[bad_idx, :].copy()
-    # 3) 실패한 행 제거
-    df = df.loc[~bad_idx, :].reset_index(drop=True)
-
-    return df, bad_rows
+    return df
 
 # ── 4) 메인 로직 시작 ───────────────────────────────────────────────
 # (a) 결제 데이터 로드 및 파싱 실패 행 처리
