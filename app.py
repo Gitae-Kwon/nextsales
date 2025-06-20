@@ -163,6 +163,27 @@ if len(coin_date_range) == 2:
     s, e = map(pd.to_datetime, coin_date_range)
     df_p = coin_df[(coin_df["date"]>=s)&(coin_df["date"]<=e)]
 
+    # 1) 전체 사용 코인
+    total_coins = int(df_p["Total_coins"].sum())
+
+    # 2) 작품별 합산 후 내림차순 정렬
+    coin_sum = df_p.groupby("Title")["Total_coins"] \
+                   .sum() \
+                   .sort_values(ascending=False)
+
+    # 3) Top N 설정
+    top_n = st.session_state.coin_top_n
+    top_n_sum = int(coin_sum.head(top_n).sum())
+
+    # 4) 비율 계산
+    ratio = top_n_sum / total_coins if total_coins else 0
+
+    # 5) 헤더에 “Top 10 작품: 1,213,212 / 7,232,121 (23%)” 형태로 표시
+    st.subheader(
+        f"📋 Top {top_n} 작품: "
+        f"{top_n_sum:,} / {total_coins:,} ({ratio:.1%})"
+    )
+
     coin_sum     = df_p.groupby("Title")["Total_coins"].sum().sort_values(ascending=False)
     total_coins  = int(coin_sum.sum())
     first_launch = coin_df.groupby("Title")["date"].min()
