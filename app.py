@@ -209,6 +209,7 @@ if len(coin_date_range) == 2:
 
 # ── 7) 3) 결제 주기 분석 ─────────────────────────────────────────────
 st.header("⏱ 결제 주기 & 평균 결제금액 분석")
+
 # 1) 폼 정의
 with st.form("cycle_form"):
     dr = st.date_input(
@@ -223,16 +224,28 @@ with st.form("cycle_form"):
 # 2) 폼이 제출됐을 때만 처리
 if submit:
     if len(dr) == 2:
-        st_dt, en_dt = pd.to_datetime(dr[0]), pd.to_datetime(dr[1])
+        # ── 여기서 기간을 뽑아서 SQL에 바로 넣어 줍니다 ──
+        start = dr[0].strftime("%Y-%m-%d")
+        end   = dr[1].strftime("%Y-%m-%d")
+
         df_raw = pd.read_sql(
-            'SELECT user_id, platform, payment_count, amount, date '
-            'FROM payment_bomkr',
-            con=engine
+            """
+            SELECT
+              user_id,
+              platform,
+              payment_count,
+              amount,
+              date
+            FROM payment_bomkr
+            WHERE date BETWEEN %(start)s AND %(end)s
+            """,
+            con=engine,
+            params={"start": start, "end": end},
         )
+
+        # 이제 추가 필터 없이 바로 분석 시작
         df_raw["date"] = pd.to_datetime(df_raw["date"])
         df_filt = df_raw[
-            (df_raw["date"] >= st_dt) &
-            (df_raw["date"] <= en_dt) &
             (df_raw["payment_count"].isin([k, m]))
         ]
 
@@ -247,6 +260,7 @@ if submit:
             .set_index("user_id")[["date","amount"]]
         )
         df_m.columns = ["d_m","a_m"]
+
         joined = df_k.join(df_m, how="inner")
         joined["cycle"] = (joined["d_m"] - joined["d_k"]).dt.days
 
@@ -274,5 +288,6 @@ if submit:
                 for p,cnt in plat_counts.items()
             )
         )
+
     else:
         st.error("❗️ 시작일과 종료일을 모두 선택해주세요.")
