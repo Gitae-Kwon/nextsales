@@ -168,22 +168,22 @@ if len(coin_date_range) == 2:
     first_launch = coin_df.groupby("Title")["date"].min()
 
     top_n = st.session_state.coin_top_n
+    # Top N DataFrame 준비
     top_df = coin_sum.head(top_n).reset_index(name="Total_coins")
-    top_n_sum = int(top_df["Total_coins"].sum())
-    ratio     = top_n_sum / total_coins if total_coins else 0
-
-    st.subheader(
-        f"📋 Top {top_n} 작품: {top_n_sum:,} / {total_coins:,} ({ratio:.1%})"
-    )
-
     top_df.insert(0, "Rank", range(1, len(top_df)+1))
     top_df["Launch Date"] = top_df["Title"].map(first_launch).dt.strftime("%Y-%m-%d")
     top_df["is_new"]      = pd.to_datetime(top_df["Launch Date"]) >= s
 
+    # hl 함수 수정: disp가 아니라 top_df를 참조
     def hl(row):
-        return ["color: yellow" if (col=="Title" and row.is_new) else "" for col in row.index]
+        is_new = top_df.loc[row.name, "is_new"]
+        return [
+            "color: yellow" if (col == "Title" and is_new) else ""
+            for col in row.index
+        ]
 
-    disp = top_df[["Rank","Title","Total_coins","Launch Date"]]
+    # 스타일링할 컬럼만 disp에 복사
+    disp = top_df[["Rank","Title","Total_coins","Launch Date"]].copy()
     styled = (
         disp.style
             .apply(hl, axis=1)
@@ -194,7 +194,10 @@ if len(coin_date_range) == 2:
                 {"selector":"th.row_heading, th.blank","props":[("display","none")]}
             ])
     )
-    st.markdown(styled.to_html(index=False, escape=False), unsafe_allow_html=True)
+    st.markdown(
+        styled.to_html(index=False, escape=False),
+        unsafe_allow_html=True
+    )
 
     if len(coin_sum) > top_n:
         if st.button("더보기", key="btn_coin_more"):
