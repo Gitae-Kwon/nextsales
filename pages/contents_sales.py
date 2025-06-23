@@ -1,19 +1,14 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine
-from prophet import Prophet
-from prophet.make_holidays import make_holidays_df
 from datetime import timedelta
 import altair as alt
 
-# ── coin_top_n 상태 초기화 ─────────────────────────────────────────
+# ── 페이지 초기 상태 설정 ─────────────────────────────────────────
 if "coin_top_n" not in st.session_state:
     st.session_state.coin_top_n = 10
 
-# ── 한국 공휴일 (Prophet 예측에 사용) ───────────────────────────────
-holidays_kr = make_holidays_df(year_list=[2024, 2025], country="KR")
-
-# ── RDS 연결 정보 (secrets.toml) ────────────────────────────────────
+# ── RDS 연결 정보 (secrets.toml) ──────────────────────────────────
 user     = st.secrets["DB"]["DB_USER"]
 password = st.secrets["DB"]["DB_PASSWORD"]
 host     = st.secrets["DB"]["DB_HOST"]
@@ -26,78 +21,71 @@ engine = create_engine(
     connect_args={"connect_timeout": 10}
 )
 
-# ── 데이터 로드 ───────────────────────────────────────────────────
+# ── Coin 데이터 로드 함수 ─────────────────────────────────────────
 @st.cache_data
 def load_coin_data():
-    # purchase_log_bomkr 테이블에서 g_coin, b_coin, g_coin_cncl, b_coin_cncl 을 불러와
-    # 토탈코인(total_coin)을 계산
     sql = """
-      SELECT
-        date,
-        Title,
-        (g_coin - g_coin_cncl) + (b_coin - b_coin_cncl) AS total_coin
-      FROM purchase_log_bomkr
+    SELECT
+      date,
+      Title,
+      (g_coin - g_coin_cncl) + (b_coin - b_coin_cncl) AS Total_coins
+    FROM purchase_log_bomkr
     """
     df = pd.read_sql(sql, con=engine)
-    # 날짜 파싱
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    # total_coin 정수로
-    df["total_coin"] = pd.to_numeric(df["total_coin"], errors="coerce").fillna(0).astype(int)
+    df = df.dropna(subset=["date"]).reset_index(drop=True)
     return df
 
-# ── 페이지 상단 ───────────────────────────────────────────────────
+# ── 페이지 제목 및 입력 ─────────────────────────────────────────
 st.header("🪙 코인 매출 분석")
+
+coin_df = load_coin_data()
 coin_date_range = st.date_input("코인 분석 기간 설정", [], key="coin_date")
 
 if len(coin_date_range) == 2:
-    s, e = map(pd.to_datetime, coin_date_range)
-    coin_df = load_coin_data()
-    # 기간 필터링
+    s, e = pd.to_datetime(coin_date_range[0]), pd.to_datetime(coin_date_range[1])
     df_p = coin_df[(coin_df["date"] >= s) & (coin_df["date"] <= e)]
 
-    # 전체 사용 코인
-    total_coins = int(df_p["total_coin"].sum())
+    # 전체 사용 코인 합계
+    total_coins = int(df_p["Total_coins"].sum())
 
-    # 작품별 합산 & 내림차순 정렬
-    coin_sum = (
-        df_p
-        .groupby("Title")["total_coin"]
-        .sum()
-        .sort_values(ascending=False)
-    )
-
-    # Top N
-    top_n      = st.session_state.coin_top_n
-    top_n_sum  = int(coin_sum.head(top_n).sum())
-    ratio      = top_n_sum / total_coins if total_coins else 0
-
-    # 헤더에 합계/비율 표시
-    st.subheader(
-        f"📋 Top {top_n} 작품: "
-        f"{top_n_sum:,} / {total_coins:,} ({ratio:.1%})"
-    )
-
-    # 테이블 준비
+    # 작품별 코인 사용량 집계 및 정렬
+    coin_sum = df_p.groupby("Title")["Total_coins"].sum().sort_values(ascending=False)
     first_launch = coin_df.groupby("Title")["date"].min()
-    top_df = coin_sum.head(top_n).reset_index(name="Total_coins")
+
+    # Top N 설정
+    top_n = st.session_state.coin_top_n
+    top_n_sum = int(coin_sum.head(top_n).sum())
+    ratio = top_n_sum / total_coins if total_coins else 0
+
+    # 헤더: Top N / 전체 & 비율
+    st.subheader(
+        f"📋 Top {top_n} 작품: {top_n_sum:,} / {total_coins:,} ({ratio:.1%})"
+    )
+
+    # Top N 테이블 준비
+    top_df = (
+        coin_sum.head(top_n)
+        .reset_index(name="Total_coins")
+    )
     top_df.insert(0, "Rank", range(1, len(top_df) + 1))
     top_df["Launch Date"] = top_df["Title"].map(first_launch).dt.strftime("%Y-%m-%d")
-    top_df["is_new"]      = pd.to_datetime(top_df["Launch Date"]) >= s
+    top_df["is_new"] = pd.to_datetime(top_df["Launch Date"]) >= s
 
-    # 하이라이트 함수
+    # 강조 함수
     def hl(row):
         is_new = top_df.loc[row.name, "is_new"]
-        return ["color: yellow" if (col=="Title" and is_new) else "" for col in row.index]
+        return ["color: yellow" if (col == "Title" and is_new) else "" for col in row.index]
 
     disp = top_df[["Rank","Title","Total_coins","Launch Date"]].copy()
     styled = (
         disp.style
             .apply(hl, axis=1)
-            .format({"Total_coins":"{:,}"})
+            .format({"Total_coins": "{:,}"})
             .set_table_styles([
-                {"selector":"th", "props":[("text-align","center")]},
-                {"selector":"td", "props":[("text-align","center")]},
-                {"selector":"th.row_heading, th.blank","props":[("display","none")]}
+                {"selector": "th", "props": [("text-align","center")]},
+                {"selector": "td", "props": [("text-align","center")]},
+                {"selector": "th.row_heading, th.blank", "props": [("display","none")]}
             ])
     )
     st.markdown(styled.to_html(index=False, escape=False), unsafe_allow_html=True)
