@@ -26,10 +26,11 @@ engine = create_engine(
 def load_coin_data():
     sql = """
     SELECT
-      date,
-      Title,
-      (g_coin - g_coin_cncl) + (b_coin - b_coin_cncl) AS Total_coins
-    FROM purchase_log_bomkr
+        `date`,
+        `title`      AS Title,
+        (IFNULL(g_coin,0)     - IFNULL(g_coin_cncl,0)
+         + IFNULL(b_coin,0)    - IFNULL(b_coin_cncl,0)) AS Total_coins
+    FROM `purchase_log_bomkr`
     """
     df = pd.read_sql(sql, con=engine)
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
