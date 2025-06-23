@@ -24,6 +24,8 @@ engine = create_engine(
 # ── Coin 데이터 로드 함수 ─────────────────────────────────────────
 @st.cache_data
 def load_coin_data():
+    # purchase_bomkr → purchase_log_bomkr 로 바뀌었습니다.
+    # total_coins 컬럼도 (g_coin-g_coin_cncl)+(b_coin-b_coin_cncl) 로 계산합니다.
     sql = """
     SELECT
       date,
@@ -32,8 +34,14 @@ def load_coin_data():
     FROM purchase_log_bomkr
     """
     df = pd.read_sql(sql, con=engine)
+
+    # date 파싱
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df = df.dropna(subset=["date"]).reset_index(drop=True)
+
+    # 혹시 parsing 실패 행이 있다면 필터링
+    if df["date"].isna().any():
+        df = df.dropna(subset=["date"]).reset_index(drop=True)
+
     return df
 
 # ── 페이지 제목 및 입력 ─────────────────────────────────────────
